@@ -21,6 +21,7 @@ if __name__ == "__main__":
     state_dict = env.reset()
     rewards = []
     next_features = generate_features(state_dict)
+    print(next_features.shape[0], DEFAULT_CONFIG['game']['num_preds'])
 
     td3 = TD3(state_dim=next_features.shape[0], action_dim=DEFAULT_CONFIG['game']['num_preds'])
 

@@ -16,28 +16,32 @@ def generate_features(state_dict):
 
         features += [x_pred, y_pred]
 
-        angle_min = 1000
-        distance_min = 1000
+        prey_list = []
+
         for prey in state_dict['preys']:
             x_prey, y_prey, r_prey, speed_prey, alive = prey['x_pos'], prey['y_pos'], \
                                                         prey['radius'], prey['speed'], prey['is_alive']
             angle = np.arctan2(y_prey - y_pred, x_prey - x_pred) / np.pi
             distance = np.sqrt((y_prey - y_pred) ** 2 + (x_prey - x_pred) ** 2)
 
-            features += [angle, distance, int(alive), r_prey]
+            prey_list += [[angle, distance, int(alive), r_prey]]
 
-            if distance < distance_min:
-                distance_min = distance
-                angle_min = angle
+        prey_list = sorted(prey_list, key=lambda x: x[1])
+        prey_list = [item for sublist in prey_list for item in sublist]
+        features += prey_list
 
-        features += [angle_min, distance_min]
+        obs_list = []
 
         for obs in state_dict['obstacles']:
             x_obs, y_obs, r_obs = obs['x_pos'], obs['y_pos'], obs['radius']
             angle = np.arctan2(y_obs - y_pred, x_obs - x_pred) / np.pi
             distance = np.sqrt((y_obs - y_pred) ** 2 + (x_obs - x_pred) ** 2)
 
-            features += [angle, distance, r_obs]
+            obs_list += [[angle, distance, r_obs]]
+
+        obs_list = sorted(obs_list, key=lambda x: x[1])
+        obs_list = [item for sublist in obs_list for item in sublist]
+        features += obs_list
 
     return np.array(features, dtype=np.float32)
 
@@ -47,38 +51,29 @@ def calc_distance(first, second):
 
 
 class Actor(nn.Module):
-    def __init__(self, state_dim: int, action_dim: int,
-                 hidden_dim: int = 64, norm_in: bool = True):
+    def __init__(self, state_size, action_size, hidden_size=64, temperature=30):
         super().__init__()
-        if norm_in:
-            self.in_fn = nn.BatchNorm1d(state_dim)
-            self.in_fn.weight.data.fill_(1)
-            self.in_fn.bias.data.fill_(0)
-        else:
-            self.in_fn = lambda x: x
 
-        self.fc1 = nn.Linear(state_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, action_dim)
-        self.fc3.weight.data.uniform_(-3e-3, 3e-3)
-        self.nonlin = nn.ReLU()
-        self.out_fn = nn.Tanh()
+        self.temp = temperature
 
-    def forward(self, states: Tensor) -> Tensor:
-        batch_size, _ = states.shape
-        h1 = self.nonlin(self.fc1(states))
-        h2 = self.nonlin(self.fc2(h1))
-        out = self.out_fn(self.fc3(h2))
+        self.model = nn.Sequential(
+            nn.Linear(state_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, action_size),
+        )
+        # self.model[-1].weight.data.uniform_(-3e-3, 3e-3) # ?
 
-        angle = torch.atan(out)
-        normalized = (angle / math.pi).view(batch_size, -1)
+    def forward(self, state):
+        out = self.model(state)
 
-        return normalized
+        return torch.tanh(out / self.temp)
 
 
 class PredatorAgent:
     def __init__(self):
-        self.model = Actor(108, 2).to(torch.device(DEVICE))
+        self.model = Actor(104, 2).to(torch.device(DEVICE))
         #state_dict = torch.load('solution_check/agent_simple_angle_2.pkl')
         state_dict = torch.load('agent.pkl')
         self.model.load_state_dict(state_dict)
@@ -88,8 +83,9 @@ class PredatorAgent:
         with torch.no_grad():
             features = generate_features(state)
             features = torch.tensor(np.array([features]), dtype=torch.float, device=DEVICE)
+            action = self.model(features).cpu().numpy()[0]
 
-            return self.model(features).cpu().numpy()[0]
+            return action
 
 
 class PreyAgent:

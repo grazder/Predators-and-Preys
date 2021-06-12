@@ -23,6 +23,7 @@ class Actor(nn.Module):
     def __init__(self, state_dim: int, action_dim: int,
                  hidden_dim: int = 64, norm_in: bool = True):
         super().__init__()
+        action_dim = action_dim * 2
         if norm_in:
             self.in_fn = nn.BatchNorm1d(state_dim)
             self.in_fn.weight.data.fill_(1)
@@ -43,10 +44,14 @@ class Actor(nn.Module):
         h2 = self.nonlin(self.fc2(h1))
         out = self.out_fn(self.fc3(h2))
 
-        angle = torch.atan(out)
-        normalized = (angle / math.pi).view(batch_size, -1)
+        norms = np.zeros((out.shape[0], out.shape[1] // 2))
+        for i in range(0, out.shape[1], 2):
+            angle = torch.atan2(*out[:, i:i + 2].T)
+            normalized = (angle / math.pi).view(batch_size, -1).cpu().detach().numpy().reshape(1, -1)
+            norms[:, i // 2] = normalized
 
-        return normalized
+        norms = torch.Tensor(norms)
+        return norms
 
 
 class Critic(nn.Module):
@@ -61,6 +66,7 @@ class Critic(nn.Module):
         )
 
     def forward(self, state, action):
+        #print(state.shape, action.shape)
         return self.model(torch.cat([state, action], dim=-1)).view(-1)
 
 
@@ -126,6 +132,7 @@ class TD3:
             self.critic_2_optim.step()
 
             # Update actor
+            #print(state.shape)
             policy_loss = -self.critic_1(state, self.actor(state)).mean()
 
             self.actor_optim.zero_grad()
@@ -139,7 +146,7 @@ class TD3:
     def act(self, state):
         with torch.no_grad():
             state = torch.tensor(np.array([state]), dtype=torch.float, device=DEVICE)
-            return self.actor(state).cpu().numpy()[0]
+            return self.actor(state).cpu().numpy()
 
     def save(self):
         torch.save(self.actor.state_dict(), "agent.pkl")
