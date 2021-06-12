@@ -42,7 +42,7 @@ class Buffer(object):
             rew = self.reward_buff[indices]
 
         return self.state_buff[indices], self.action_buff[indices], self.next_state_buff[indices], \
-               self.reward_buff[indices],  self.done_buff[indices]
+               rew,  self.done_buff[indices]
 
     def __len__(self):
         return self.curr_size
