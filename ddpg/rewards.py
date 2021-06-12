@@ -10,11 +10,6 @@ def is_collision(agent1, agent2) -> bool:
 
 def pred_reward(state_dict) -> float:
     rew = 0.
-    shape = False
-
-    if shape:
-        for prey in state_dict["preys"]:
-            rew -= 0.1 * distance(pred, prey)
 
     for predator in state_dict["predators"]:
         for prey in state_dict["preys"]:

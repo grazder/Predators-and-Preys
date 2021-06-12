@@ -1,11 +1,12 @@
 from collections import deque
 import numpy as np
 import torch
-from torch import nn
+from torch import nn, Tensor
 from torch.nn import functional as F
 from torch.optim import Adam
 import random
 import copy
+import math
 
 from ddpg.buffer import Buffer
 
@@ -19,19 +20,33 @@ EPS = 0.2
 
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim):
+    def __init__(self, state_dim: int, action_dim: int,
+                 hidden_dim: int = 64, norm_in: bool = True):
         super().__init__()
-        self.model = nn.Sequential(
-            nn.Linear(state_dim, 256),
-            nn.ELU(),
-            nn.Linear(256, 256),
-            nn.ELU(),
-            nn.Linear(256, action_dim),
-            nn.Tanh()
-        )
+        if norm_in:
+            self.in_fn = nn.BatchNorm1d(state_dim)
+            self.in_fn.weight.data.fill_(1)
+            self.in_fn.bias.data.fill_(0)
+        else:
+            self.in_fn = lambda x: x
 
-    def forward(self, state):
-        return self.model(state)
+        self.fc1 = nn.Linear(state_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, action_dim)
+        self.fc3.weight.data.uniform_(-3e-3, 3e-3)
+        self.nonlin = nn.ReLU()
+        self.out_fn = nn.Tanh()
+
+    def forward(self, states: Tensor) -> Tensor:
+        batch_size, _ = states.shape
+        h1 = self.nonlin(self.fc1(states))
+        h2 = self.nonlin(self.fc2(h1))
+        out = self.out_fn(self.fc3(h2))
+
+        angle = torch.atan(out)
+        normalized = (angle / math.pi).view(batch_size, -1)
+
+        return normalized
 
 
 class Critic(nn.Module):
