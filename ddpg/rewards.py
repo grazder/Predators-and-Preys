@@ -19,7 +19,7 @@ def pred_reward(state_dict) -> float:
             if prey['is_alive']:
                 rew -= 0.1 * distance(predator, prey)
 
-        for obs in state_dict['obsticle']:
+        for obs in state_dict['obstacles']:
             if is_collision(predator, obs):
                 rew -= 100
 
