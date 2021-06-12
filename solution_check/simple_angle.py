@@ -51,24 +51,38 @@ def calc_distance(first, second):
 
 
 class Actor(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size=64, temperature=30):
+    def __init__(self, state_dim: int, action_dim: int,
+                 hidden_dim: int = 64, norm_in: bool = True):
         super().__init__()
+        action_dim = action_dim * 2
+        if norm_in:
+            self.in_fn = nn.BatchNorm1d(state_dim)
+            self.in_fn.weight.data.fill_(1)
+            self.in_fn.bias.data.fill_(0)
+        else:
+            self.in_fn = lambda x: x
 
-        self.temp = temperature
+        self.fc1 = nn.Linear(state_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, action_dim)
+        self.fc3.weight.data.uniform_(-3e-3, 3e-3)
+        self.nonlin = nn.ReLU()
+        self.out_fn = nn.Tanh()
 
-        self.model = nn.Sequential(
-            nn.Linear(state_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, action_size),
-        )
-        # self.model[-1].weight.data.uniform_(-3e-3, 3e-3) # ?
+    def forward(self, states: Tensor) -> Tensor:
+        batch_size, _ = states.shape
+        h1 = self.nonlin(self.fc1(states))
+        h2 = self.nonlin(self.fc2(h1))
+        out = self.out_fn(self.fc3(h2))
 
-    def forward(self, state):
-        out = self.model(state)
+        norms = np.zeros((out.shape[0], out.shape[1] // 2))
+        for i in range(0, out.shape[1], 2):
+            angle = torch.atan2(*out[:, i:i + 2].T)
+            normalized = (angle / math.pi).view(batch_size, -1).cpu().detach().numpy().reshape(1, -1)
+            norms[:, i // 2] = normalized
 
-        return torch.tanh(out / self.temp)
+        norms = torch.Tensor(norms)
+        return norms
 
 
 class PredatorAgent:

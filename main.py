@@ -8,6 +8,7 @@ prey_agent = PreyAgent()
 a = None
 done = True
 state_dict = None
+state_dict = env.reset()
 for i in range(100000):
     if done:
         state_dict = env.reset()
