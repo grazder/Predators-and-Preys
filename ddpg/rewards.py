@@ -22,7 +22,7 @@ def pred_reward(state_dict) -> float:
                 if min_dist > prey_dist:
                     min_dist = prey_dist
 
-        rew -= 0.2 * min_dist
+        rew -= min_dist
 
         for obs in state_dict['obstacles']:
             if is_collision(predator, obs):
