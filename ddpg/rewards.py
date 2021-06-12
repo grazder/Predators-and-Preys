@@ -1,5 +1,6 @@
 import math
 
+
 def distance(agent1, agent2) -> float:
     return math.sqrt((agent1["x_pos"] - agent2["x_pos"]) ** 2 + (agent1["y_pos"] - agent2["y_pos"]) ** 2)
 
@@ -14,8 +15,8 @@ def pred_reward(state_dict) -> float:
     for predator in state_dict["predators"]:
         min_dist = 1000
         for prey in state_dict["preys"]:
-            if is_collision(predator, prey):
-                rew += 10.
+            # if is_collision(predator, prey):
+            #     rew += 10.
 
             if prey['is_alive']:
                 prey_dist = distance(predator, prey)
