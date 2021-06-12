@@ -7,6 +7,8 @@ from torch.optim import Adam
 import random
 import copy
 
+from ddpg.buffer import Buffer
+
 GAMMA = 0.99
 TAU = 0.002
 CRITIC_LR = 5e-4
@@ -66,16 +68,15 @@ class TD3:
         self.target_critic_1 = copy.deepcopy(self.critic_1)
         self.target_critic_2 = copy.deepcopy(self.critic_2)
 
-        self.replay_buffer = deque(maxlen=200000)
+        self.replay_buffer = Buffer(state_dim, action_dim, 100_000)
         self.criterion = nn.MSELoss()
 
     def update(self, transition):
-        self.replay_buffer.append(transition)
+        self.replay_buffer.push(*transition)
         if len(self.replay_buffer) > BATCH_SIZE * 16:
             # Sample batch
-            transitions = [self.replay_buffer[random.randint(0, len(self.replay_buffer) - 1)] for _ in
-                           range(BATCH_SIZE)]
-            state, action, next_state, reward, done = zip(*transitions)
+            transitions = self.replay_buffer.sample(BATCH_SIZE)
+            state, action, next_state, reward, done = transitions
             state = torch.tensor(np.array(state), device=DEVICE, dtype=torch.float)
             action = torch.tensor(np.array(action), device=DEVICE, dtype=torch.float)
             next_state = torch.tensor(np.array(next_state), device=DEVICE, dtype=torch.float)
