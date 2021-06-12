@@ -8,7 +8,11 @@ prey_agent = PreyAgent()
 a = None
 done = True
 state_dict = None
-state_dict = env.reset()
+
+import numpy as np
+
+for i in range(np.random.randint(100)):
+    state_dict = env.reset()
 for i in range(100000):
     if done:
         state_dict = env.reset()
