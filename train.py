@@ -26,12 +26,12 @@ if __name__ == "__main__":
     state_dict = env.reset()
     rewards = []
     next_features = generate_features(state_dict)
-    next_features = torch.FloatTensor(next_features)
+    #next_features = torch.FloatTensor(next_features)
     print(next_features.shape[0], DEFAULT_CONFIG['game']['num_preds'])
 
-    # td3 = TD3(state_dim=next_features.shape[0], action_dim=DEFAULT_CONFIG['game']['num_preds'])
-    ddpg = DDPG(state_dim=next_features.shape[0], action_dim=DEFAULT_CONFIG['game']['num_preds'],
-               low=-1, high=1, eps=1.0, mem_sz=60000)
+    td3 = TD3(state_dim=next_features.shape[0], action_dim=DEFAULT_CONFIG['game']['num_preds'])
+    #ddpg = DDPG(state_dim=next_features.shape[0], action_dim=DEFAULT_CONFIG['game']['num_preds'],
+    #           low=-1, high=1, eps=1.0, mem_sz=60000)
 
     for i in tqdm(range(TRANSITIONS)):
         steps = 0
@@ -39,7 +39,7 @@ if __name__ == "__main__":
         train_features = next_features
 
         # Epsilon-greedy policy
-        predator_action = ddpg.act(train_features)
+        predator_action = td3.act(train_features)
         #predator_action = np.clip(predator_action + EPS * np.random.randn(*predator_action.shape), -1, +1)
 
         next_state_dict, _, done = env.step(predator_action, prey_agent.act(state_dict))
@@ -47,21 +47,21 @@ if __name__ == "__main__":
 
         # mse
         default_action = predator_agent.act(state_dict)
-        reward = -mean_squared_error(default_action, predator_action)
+        reward = -mean_squared_error(default_action, predator_action[0])
 
         next_features = generate_features(next_state_dict)
-        next_features = torch.FloatTensor(next_features)
+        #next_features = torch.FloatTensor(next_features)
 
-        ddpg.memory.push(train_features, predator_action, next_features, reward, done)
-        ddpg.update()
+        # ddpg.memory.push(train_features, predator_action, next_features, reward, done)
+        # ddpg.update()
 
-        #td3.update((train_features, predator_action, next_features, reward, done))
+        td3.update((train_features, predator_action, next_features, reward, done))
 
         rewards.append(reward)
         state_dict = next_state_dict if not done else env.reset()
 
         if (i + 1) % 5_000 == 0:
             print(f"Step: {i + 1}, Reward mean: {np.mean(rewards)}, Reward std: {np.std(rewards)}")
-            # td3.save()
-            ddpg.save()
+            td3.save()
+            # ddpg.save()
             rewards = []

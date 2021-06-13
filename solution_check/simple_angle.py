@@ -50,39 +50,54 @@ def calc_distance(first, second):
     return ((first["x_pos"] - second["x_pos"]) ** 2 + (first["y_pos"] - second["y_pos"]) ** 2) ** 0.5
 
 
+# class Actor(nn.Module):
+#     def __init__(self, state_dim: int, action_dim: int,
+#                  hidden_dim: int = 64, norm_in: bool = True):
+#         super().__init__()
+#         action_dim = action_dim * 2
+#         if norm_in:
+#             self.in_fn = nn.BatchNorm1d(state_dim)
+#             self.in_fn.weight.data.fill_(1)
+#             self.in_fn.bias.data.fill_(0)
+#         else:
+#             self.in_fn = lambda x: x
+#
+#         self.fc1 = nn.Linear(state_dim, hidden_dim)
+#         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+#         self.fc3 = nn.Linear(hidden_dim, action_dim)
+#         self.fc3.weight.data.uniform_(-3e-3, 3e-3)
+#         self.nonlin = nn.ReLU()
+#         self.out_fn = nn.Tanh()
+#
+#     def forward(self, states: Tensor) -> Tensor:
+#         batch_size, _ = states.shape
+#         h1 = self.nonlin(self.fc1(states))
+#         h2 = self.nonlin(self.fc2(h1))
+#         out = self.out_fn(self.fc3(h2))
+#
+#         norms = np.zeros((out.shape[0], out.shape[1] // 2))
+#         for i in range(0, out.shape[1], 2):
+#             angle = torch.atan2(*out[:, i:i + 2].T)
+#             normalized = (angle / math.pi).view(batch_size, -1).cpu().detach().numpy().reshape(1, -1)
+#             norms[:, i // 2] = normalized
+#
+#         norms = torch.Tensor(norms)
+#         return norms
+
 class Actor(nn.Module):
-    def __init__(self, state_dim: int, action_dim: int,
-                 hidden_dim: int = 64, norm_in: bool = True):
+    def __init__(self, state_dim, action_dim):
         super().__init__()
-        action_dim = action_dim * 2
-        if norm_in:
-            self.in_fn = nn.BatchNorm1d(state_dim)
-            self.in_fn.weight.data.fill_(1)
-            self.in_fn.bias.data.fill_(0)
-        else:
-            self.in_fn = lambda x: x
+        self.model = nn.Sequential(
+            nn.Linear(state_dim, 256),
+            nn.ELU(),
+            nn.Linear(256, 256),
+            nn.ELU(),
+            nn.Linear(256, action_dim),
+            nn.Tanh()
+        )
 
-        self.fc1 = nn.Linear(state_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, action_dim)
-        self.fc3.weight.data.uniform_(-3e-3, 3e-3)
-        self.nonlin = nn.ReLU()
-        self.out_fn = nn.Tanh()
-
-    def forward(self, states: Tensor) -> Tensor:
-        batch_size, _ = states.shape
-        h1 = self.nonlin(self.fc1(states))
-        h2 = self.nonlin(self.fc2(h1))
-        out = self.out_fn(self.fc3(h2))
-
-        norms = np.zeros((out.shape[0], out.shape[1] // 2))
-        for i in range(0, out.shape[1], 2):
-            angle = torch.atan2(*out[:, i:i + 2].T)
-            normalized = (angle / math.pi).view(batch_size, -1).cpu().detach().numpy().reshape(1, -1)
-            norms[:, i // 2] = normalized
-
-        norms = torch.Tensor(norms)
-        return norms
+    def forward(self, state):
+        return self.model(state)
 
 
 class PredatorAgent:
