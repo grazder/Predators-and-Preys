@@ -1,6 +1,6 @@
 from predators_and_preys_env.env import PredatorsAndPreysEnv
-# from solution_check.simple_angle import PredatorAgent, PreyAgent
-from solution_check.simpl_dimpl import PredatorAgent, PreyAgent
+from solution_check.simple_angle import PredatorAgent, PreyAgent
+# from solution_check.simpl_dimpl import PredatorAgent, PreyAgent
 
 env = PredatorsAndPreysEnv(render=True)
 predator_agent = PredatorAgent()
