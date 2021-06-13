@@ -1,7 +1,7 @@
 from predators_and_preys_env.env import PredatorsAndPreysEnv, DEFAULT_CONFIG
 from ddpg.agents import PredatorAgent, PreyAgent
 from ddpg.rewards import pred_reward
-from ddpg.features import generate_features
+from ddpg.features import generate_features_prey
 
 from ddpg.td3 import TD3
 from ddpg.ddpg import DDPG
@@ -25,13 +25,10 @@ if __name__ == "__main__":
 
     state_dict = env.reset()
     rewards = []
-    next_features = generate_features(state_dict)
-    #next_features = torch.FloatTensor(next_features)
+    next_features = generate_features_prey(state_dict)
     print(next_features.shape[0], DEFAULT_CONFIG['game']['num_preds'])
 
-    td3 = TD3(state_dim=next_features.shape[0], action_dim=DEFAULT_CONFIG['game']['num_preds'])
-    #ddpg = DDPG(state_dim=next_features.shape[0], action_dim=DEFAULT_CONFIG['game']['num_preds'],
-    #           low=-1, high=1, eps=1.0, mem_sz=60000)
+    td3 = TD3(state_dim=next_features.shape[0], action_dim=DEFAULT_CONFIG['game']['num_preys'])
 
     for i in tqdm(range(TRANSITIONS)):
         steps = 0
@@ -39,23 +36,19 @@ if __name__ == "__main__":
         train_features = next_features
 
         # Epsilon-greedy policy
-        predator_action = td3.act(train_features)
-        #predator_action = np.clip(predator_action + EPS * np.random.randn(*predator_action.shape), -1, +1)
+        prey_action = td3.act(train_features)
+        prey_action = np.clip(prey_action + EPS * np.random.randn(*prey_action.shape), -1, +1)
 
-        next_state_dict, _, done = env.step(predator_action, prey_agent.act(state_dict))
+        next_state_dict, _, done = env.step(predator_agent.act(state_dict), prey_action)
         # reward = pred_reward(state_dict)
 
         # mse
-        default_action = predator_agent.act(state_dict)
-        reward = -mean_squared_error(default_action, predator_action[0])
+        default_action = prey_agent.act(state_dict)
+        reward = -mean_squared_error(default_action, prey_action[0])
 
-        next_features = generate_features(next_state_dict)
-        #next_features = torch.FloatTensor(next_features)
+        next_features = generate_features_prey(next_state_dict)
 
-        # ddpg.memory.push(train_features, predator_action, next_features, reward, done)
-        # ddpg.update()
-
-        td3.update((train_features, predator_action, next_features, reward, done))
+        td3.update((train_features, prey_action, next_features, reward, done))
 
         rewards.append(reward)
         state_dict = next_state_dict if not done else env.reset()
