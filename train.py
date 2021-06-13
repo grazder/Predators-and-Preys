@@ -5,6 +5,7 @@ from ddpg.features import generate_features
 from ddpg.td3 import TD3
 from tqdm import tqdm
 import numpy as np
+from sklearn.metrics import mean_squared_error
 
 TRANSITIONS = 1000000
 EPS = 0.2
@@ -35,7 +36,11 @@ if __name__ == "__main__":
         predator_action = np.clip(predator_action + EPS * np.random.randn(*predator_action.shape), -1, +1)
 
         next_state_dict, _, done = env.step(predator_action, prey_agent.act(state_dict))
-        reward = pred_reward(state_dict)
+        # reward = pred_reward(state_dict)
+
+        # mse
+        default_action = predator_agent.act(state_dict)
+        reward = -mean_squared_error(default_action, predator_action[0])
 
         next_features = generate_features(next_state_dict)
         td3.update((train_features, predator_action, next_features, reward, done))
